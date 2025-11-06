@@ -3,8 +3,9 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recha
 import { AppContext } from '../AppContext';
 import { Investment } from '../types';
 import AddInvestmentModal from './AddInvestmentModal';
+import { EditIcon } from './Icons';
 
-const InvestmentCard: React.FC<{ investment: Investment }> = ({ investment }) => {
+const InvestmentCard: React.FC<{ investment: Investment, onEdit: (investment: Investment) => void }> = ({ investment, onEdit }) => {
     const profit = investment.currentValue - investment.initialValue;
     // Evita divisão por zero se o valor inicial for 0
     const profitPercentage = investment.initialValue !== 0 ? (profit / investment.initialValue) * 100 : 0;
@@ -30,9 +31,14 @@ const InvestmentCard: React.FC<{ investment: Investment }> = ({ investment }) =>
                         </h3>
                         <p className="text-sm text-text-secondary">{investment.type}</p>
                     </div>
-                     <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-800 rounded-full flex-shrink-0 ml-2">
-                        {investment.currency}
-                    </span>
+                     <div className="flex items-center space-x-2">
+                        <span className="text-xs font-semibold px-2 py-1 bg-blue-100 text-blue-800 rounded-full flex-shrink-0">
+                            {investment.currency}
+                        </span>
+                        <button onClick={() => onEdit(investment)} className="text-gray-400 hover:text-primary">
+                            <EditIcon className="w-5 h-5"/>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -62,6 +68,22 @@ const InvestmentCard: React.FC<{ investment: Investment }> = ({ investment }) =>
 const InvestmentsPage: React.FC = () => {
     const context = useContext(AppContext);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
+
+    const openEditModal = (investment: Investment) => {
+        setEditingInvestment(investment);
+        setIsModalOpen(true);
+    };
+
+    const openAddModal = () => {
+        setEditingInvestment(null);
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setEditingInvestment(null);
+    };
     
     const { totalValue, investmentData } = useMemo(() => {
         if (!context) return { totalValue: 0, investmentData: [] };
@@ -88,7 +110,7 @@ const InvestmentsPage: React.FC = () => {
             <div className="flex justify-between items-center">
                 <h2 className="text-3xl font-bold text-text-primary">Carteira de Investimentos</h2>
                 <button 
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={openAddModal}
                     className="bg-primary text-white font-bold py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors">
                     Adicionar Investimento
                 </button>
@@ -126,11 +148,11 @@ const InvestmentsPage: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {context.investments.map(inv => (
-                    <InvestmentCard key={inv.id} investment={inv} />
+                    <InvestmentCard key={inv.id} investment={inv} onEdit={openEditModal} />
                 ))}
             </div>
 
-            {isModalOpen && <AddInvestmentModal onClose={() => setIsModalOpen(false)} />}
+            {isModalOpen && <AddInvestmentModal onClose={closeModal} investmentToEdit={editingInvestment} />}
         </div>
     );
 };

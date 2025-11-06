@@ -1,12 +1,14 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../AppContext';
+import { Investment } from '../types';
 import { CURRENCIES, INVESTMENT_TYPES } from '../constants';
 
 interface AddInvestmentModalProps {
     onClose: () => void;
+    investmentToEdit?: Investment | null;
 }
 
-const AddInvestmentModal: React.FC<AddInvestmentModalProps> = ({ onClose }) => {
+const AddInvestmentModal: React.FC<AddInvestmentModalProps> = ({ onClose, investmentToEdit }) => {
     const context = useContext(AppContext);
     const [name, setName] = useState('');
     const [type, setType] = useState(INVESTMENT_TYPES[0]);
@@ -15,27 +17,48 @@ const AddInvestmentModal: React.FC<AddInvestmentModalProps> = ({ onClose }) => {
     const [currency, setCurrency] = useState('BRL');
     const [acquisitionDate, setAcquisitionDate] = useState(new Date().toISOString().split('T')[0]);
 
+    const isEditing = investmentToEdit != null;
+
+    useEffect(() => {
+        if (isEditing) {
+            setName(investmentToEdit.name);
+            setType(investmentToEdit.type);
+            setInitialValue(String(investmentToEdit.initialValue));
+            setCurrentValue(String(investmentToEdit.currentValue));
+            setCurrency(investmentToEdit.currency);
+            setAcquisitionDate(new Date(investmentToEdit.acquisitionDate).toISOString().split('T')[0]);
+        }
+    }, [isEditing, investmentToEdit]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!name || !initialValue || !currentValue || !acquisitionDate) {
             alert('Por favor, preencha todos os campos.');
             return;
         }
-        context?.addInvestment({
+
+        const investmentData = {
             name,
             type,
             initialValue: parseFloat(initialValue),
             currentValue: parseFloat(currentValue),
             currency,
             acquisitionDate: new Date(acquisitionDate).toISOString(),
-        });
+        };
+
+        if (isEditing) {
+            context?.updateInvestment({ ...investmentData, id: investmentToEdit.id });
+        } else {
+            context?.addInvestment(investmentData);
+        }
+
         onClose();
     };
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-surface rounded-xl shadow-2xl max-w-lg w-full p-6 md:p-8" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-text-primary mb-6">Novo Investimento</h2>
+                <h2 className="text-2xl font-bold text-text-primary mb-6">{isEditing ? 'Editar Investimento' : 'Novo Investimento'}</h2>
                 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>

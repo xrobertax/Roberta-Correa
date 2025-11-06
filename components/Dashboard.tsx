@@ -1,4 +1,3 @@
-
 import React, { useContext, useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Legend as PieLegend } from 'recharts';
 import { AppContext } from '../AppContext';
@@ -54,10 +53,15 @@ const Dashboard: React.FC = () => {
     const [isLoadingInsights, setIsLoadingInsights] = useState(false);
     const [insights, setInsights] = useState<string | null>(null);
 
-    const { totalIncome, totalExpenses, balance, monthlyData, expenseData, recentTransactions } = useMemo(() => {
-        if (!context) return { totalIncome: 0, totalExpenses: 0, balance: 0, monthlyData: [], expenseData: [], recentTransactions: [] };
+    const { totalIncome, totalExpenses, balance, monthlyData, expenseData, recentTransactions, currentMonthTransactions } = useMemo(() => {
+        if (!context) return { totalIncome: 0, totalExpenses: 0, balance: 0, monthlyData: [], expenseData: [], recentTransactions: [], currentMonthTransactions: [] };
 
-        const currentMonthTransactions = context.transactions.filter(t => new Date(t.date).getMonth() === new Date().getMonth());
+        const { currentDate, transactions } = context;
+
+        const currentMonthTransactions = transactions.filter(t => {
+            const transactionDate = new Date(t.date);
+            return transactionDate.getMonth() === currentDate.getMonth() && transactionDate.getFullYear() === currentDate.getFullYear();
+        });
 
         const totalIncome = currentMonthTransactions.filter(t => t.type === TransactionType.Income).reduce((sum, t) => sum + t.amount, 0);
         const totalExpenses = currentMonthTransactions.filter(t => t.type === TransactionType.Expense).reduce((sum, t) => sum + t.amount, 0);
@@ -83,9 +87,9 @@ const Dashboard: React.FC = () => {
 
         const expenseData = Object.entries(expenseCategories).map(([name, value]) => ({ name, value }));
         
-        const recentTransactions = [...context.transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
+        const recentTransactions = [...currentMonthTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
-        return { totalIncome, totalExpenses, balance, monthlyData, expenseData, recentTransactions };
+        return { totalIncome, totalExpenses, balance, monthlyData, expenseData, recentTransactions, currentMonthTransactions };
     }, [context]);
     
     if (!context) return <div>Carregando...</div>;
@@ -95,7 +99,7 @@ const Dashboard: React.FC = () => {
     const handleGetInsights = async () => {
         setIsLoadingInsights(true);
         setInsights(null);
-        const result = await getFinancialInsights(context.transactions, context.investments);
+        const result = await getFinancialInsights(currentMonthTransactions, context.investments, context.currentDate);
         setInsights(result);
         setIsLoadingInsights(false);
     };
@@ -125,7 +129,7 @@ const Dashboard: React.FC = () => {
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 <div className="lg:col-span-3 bg-surface p-6 rounded-xl shadow-md">
-                    <h3 className="text-lg font-semibold mb-4 text-text-primary">Receitas vs. Despesas</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-text-primary">Visão Anual: Receitas vs. Despesas</h3>
                     <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={monthlyData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -139,55 +143,63 @@ const Dashboard: React.FC = () => {
                     </ResponsiveContainer>
                 </div>
                 <div className="lg:col-span-2 bg-surface p-6 rounded-xl shadow-md">
-                    <h3 className="text-lg font-semibold mb-4 text-text-primary">Distribuição de Despesas</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-text-primary">Distribuição de Despesas do Mês</h3>
                      <ResponsiveContainer width="100%" height={300}>
-                        <PieChart>
-                            <Pie
-                                data={expenseData}
-                                cx="50%"
-                                cy="50%"
-                                labelLine={false}
-                                outerRadius={80}
-                                fill="#8884d8"
-                                dataKey="value"
-                            >
-                                {expenseData.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                ))}
-                            </Pie>
-                             <Tooltip formatter={(value: number) => `R$${value.toFixed(2)}`} />
-                             <PieLegend />
-                        </PieChart>
+                        {expenseData.length > 0 ? (
+                            <PieChart>
+                                <Pie
+                                    data={expenseData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {expenseData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value: number) => `R$${value.toFixed(2)}`} />
+                                <PieLegend />
+                            </PieChart>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-text-secondary">Nenhuma despesa este mês.</div>
+                        )}
                     </ResponsiveContainer>
                 </div>
             </div>
             
             {/* Recent Transactions */}
              <div className="bg-surface p-6 rounded-xl shadow-md">
-                <h3 className="text-lg font-semibold mb-4 text-text-primary">Transações Recentes</h3>
+                <h3 className="text-lg font-semibold mb-4 text-text-primary">Transações Recentes do Mês</h3>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left">
-                        <thead>
-                            <tr className="border-b">
-                                <th className="p-2">Descrição</th>
-                                <th className="p-2">Data</th>
-                                <th className="p-2">Categoria</th>
-                                <th className="p-2 text-right">Valor</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {recentTransactions.map((t: Transaction) => (
-                                <tr key={t.id} className="border-b last:border-0 hover:bg-gray-50">
-                                    <td className="p-2 font-medium">{t.description}</td>
-                                    <td className="p-2 text-text-secondary">{new Date(t.date).toLocaleDateString()}</td>
-                                    <td className="p-2 text-text-secondary">{t.category}</td>
-                                    <td className={`p-2 text-right font-semibold ${t.type === TransactionType.Income ? 'text-secondary' : 'text-red-500'}`}>
-                                        {t.type === TransactionType.Income ? '+' : '-'} {t.currency} {t.amount.toFixed(2)}
-                                    </td>
+                    {recentTransactions.length > 0 ? (
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="border-b">
+                                    <th className="p-2">Descrição</th>
+                                    <th className="p-2">Data</th>
+                                    <th className="p-2">Categoria</th>
+                                    <th className="p-2 text-right">Valor</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {recentTransactions.map((t: Transaction) => (
+                                    <tr key={t.id} className="border-b last:border-0 hover:bg-gray-50">
+                                        <td className="p-2 font-medium">{t.description}</td>
+                                        <td className="p-2 text-text-secondary">{new Date(t.date).toLocaleDateString()}</td>
+                                        <td className="p-2 text-text-secondary">{t.category}</td>
+                                        <td className={`p-2 text-right font-semibold ${t.type === TransactionType.Income ? 'text-secondary' : 'text-red-500'}`}>
+                                            {t.type === TransactionType.Income ? '+' : '-'} {t.currency} {t.amount.toFixed(2)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    ) : (
+                        <p className="text-center text-text-secondary py-4">Nenhuma transação este mês.</p>
+                    )}
                 </div>
             </div>
         </div>

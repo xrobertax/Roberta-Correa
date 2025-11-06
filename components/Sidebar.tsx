@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, User } from '../types';
-import { DashboardIcon, TransactionsIcon, InvestmentsIcon, CloseIcon, BudgetIcon } from './Icons';
+import { DashboardIcon, TransactionsIcon, InvestmentsIcon, CloseIcon, BudgetIcon, ReportsIcon } from './Icons';
 
 interface SidebarProps {
     currentView: View;
@@ -45,6 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, isSidebarOpen, 
         { view: View.Transactions, icon: <TransactionsIcon className="w-6 h-6" />, label: 'Transações' },
         { view: View.Investments, icon: <InvestmentsIcon className="w-6 h-6" />, label: 'Investimentos' },
         { view: View.Budgets, icon: <BudgetIcon className="w-6 h-6" />, label: 'Orçamentos' },
+        { view: View.Reports, icon: <ReportsIcon className="w-6 h-6" />, label: 'Relatórios' },
     ];
 
     return (

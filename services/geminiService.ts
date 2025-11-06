@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { Transaction, Investment, TransactionType } from '../types';
 
@@ -8,7 +7,9 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY! });
 
-function formatFinancialDataForPrompt(transactions: Transaction[], investments: Investment[]): string {
+function formatFinancialDataForPrompt(transactions: Transaction[], investments: Investment[], currentDate: Date): string {
+    const monthName = currentDate.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
+    
     const totalIncome = transactions
         .filter(t => t.type === TransactionType.Income)
         .reduce((sum, t) => sum + t.amount, 0)
@@ -44,7 +45,7 @@ function formatFinancialDataForPrompt(transactions: Transaction[], investments: 
         .join('\n');
 
     return `
-Here is a summary of a family's financial data for the current month (amounts are in their respective currencies, mostly BRL and USD):
+Here is a summary of a family's financial data for ${monthName} (amounts are in their respective currencies, mostly BRL and USD):
 
 **Monthly Financial Summary:**
 - Total Income: ${totalIncome}
@@ -53,23 +54,23 @@ Here is a summary of a family's financial data for the current month (amounts ar
 **Expense Breakdown by Category:**
 ${formattedExpenseCategories}
 
-**Investment Portfolio Summary:**
+**Investment Portfolio Summary (geral, não mensal):**
 - Total Investment Value: ${totalInvestments}
 
 **Investment Allocation by Type:**
 ${formattedInvestmentTypes}
 
-Please analyze this data and provide actionable financial insights and tips for this family. Focus on potential savings, investment diversification, and general financial health improvements. Keep the tone friendly, encouraging, and easy to understand for someone who is not a financial expert. Please provide your response in Portuguese (Brazil).
+Please analyze the financial data for ${monthName} and provide actionable financial insights and tips for this family. Focus on potential savings, expense analysis for this month, and general financial health improvements based on this month's performance. Keep the tone friendly, encouraging, and easy to understand for someone who is not a financial expert. Please provide your response in Portuguese (Brazil).
     `;
 }
 
-export const getFinancialInsights = async (transactions: Transaction[], investments: Investment[]): Promise<string> => {
+export const getFinancialInsights = async (transactions: Transaction[], investments: Investment[], currentDate: Date): Promise<string> => {
     if (!process.env.API_KEY) {
         return "A chave da API do Gemini não está configurada. Por favor, configure a variável de ambiente API_KEY para usar as funcionalidades de IA.";
     }
     
     try {
-        const prompt = formatFinancialDataForPrompt(transactions, investments);
+        const prompt = formatFinancialDataForPrompt(transactions, investments, currentDate);
 
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',

@@ -1,14 +1,14 @@
-
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from '../AppContext';
-import { TransactionType } from '../types';
+import { Transaction, TransactionType } from '../types';
 import { CURRENCIES, TRANSACTION_CATEGORIES } from '../constants';
 
 interface AddTransactionModalProps {
     onClose: () => void;
+    transactionToEdit?: Transaction | null;
 }
 
-const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose }) => {
+const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose, transactionToEdit }) => {
     const context = useContext(AppContext);
     const [type, setType] = useState<TransactionType>(TransactionType.Expense);
     const [description, setDescription] = useState('');
@@ -18,13 +18,29 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose }) =>
     const [currency, setCurrency] = useState('BRL');
     const [source, setSource] = useState('');
 
+    const isEditing = transactionToEdit != null;
+
+    useEffect(() => {
+        if (isEditing) {
+            setType(transactionToEdit.type);
+            setDescription(transactionToEdit.description);
+            setAmount(String(transactionToEdit.amount));
+            setCategory(transactionToEdit.category);
+            setDate(new Date(transactionToEdit.date).toISOString().split('T')[0]);
+            setCurrency(transactionToEdit.currency);
+            setSource(transactionToEdit.source);
+        }
+    }, [transactionToEdit, isEditing]);
+
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!description || !amount || !category || !date || !source) {
             alert('Por favor, preencha todos os campos.');
             return;
         }
-        context?.addTransaction({
+
+        const transactionData = {
             type,
             description,
             amount: parseFloat(amount),
@@ -32,19 +48,29 @@ const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ onClose }) =>
             date: new Date(date).toISOString(),
             currency,
             source
-        });
+        };
+
+        if (isEditing) {
+            context?.updateTransaction({ ...transactionData, id: transactionToEdit.id });
+        } else {
+            context?.addTransaction(transactionData);
+        }
+        
         onClose();
     };
     
     const handleTypeChange = (newType: TransactionType) => {
         setType(newType);
-        setCategory(TRANSACTION_CATEGORIES[newType][0]);
+        // Só muda a categoria se não estiver editando ou se a categoria atual não existir no novo tipo
+        if (!isEditing || !TRANSACTION_CATEGORIES[newType].includes(category)) {
+             setCategory(TRANSACTION_CATEGORIES[newType][0]);
+        }
     }
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <div className="bg-surface rounded-xl shadow-2xl max-w-lg w-full p-6 md:p-8" onClick={(e) => e.stopPropagation()}>
-                <h2 className="text-2xl font-bold text-text-primary mb-6">Nova Transação</h2>
+                <h2 className="text-2xl font-bold text-text-primary mb-6">{isEditing ? 'Editar Transação' : 'Nova Transação'}</h2>
                 
                 <div className="flex border border-gray-200 rounded-lg p-1 mb-6">
                     <button 
